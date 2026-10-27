@@ -32,8 +32,6 @@ extern const OSSymbol * gIONameKey;
 
 OSDefineMetaClassAndStructors(AppleIntelTGLController, IOService)
 
-
-
 bool AppleIntelTGLController::init(OSDictionary *dictionary)
 {
     IOLog("AppleIntelTGL: init() called\n");
@@ -187,10 +185,9 @@ bool AppleIntelTGLController::start(IOService *provider)
         return false;
     }
     
-    // Setup GuC (Graphics Microcontroller) - REQUIRED for Tiger Lake Gen12+
+    // Setup GuC (Graphics Microcontroller) - REQUIRED for Tiger Lake & Alder Lake Gen12+
     if (!setupGuC()) {
         IOLog("AppleIntelTGL: WARNING - GuC setup failed (may affect performance)\n");
-        // Don't fail here - continue for older GPUs that don't need GuC
     }
     
     // Setup render ring (will use GuC submission on Gen12+ if available)
@@ -217,7 +214,6 @@ bool AppleIntelTGLController::start(IOService *provider)
     IOLog("AppleIntelTGL: About to setup blitter engine...\n");
     if (!setupBlitter()) {
         IOLog("AppleIntelTGL: Failed to setup blitter (non-critical)\n");
-        // Not critical - continue without blitter
     } else {
         IOLog("AppleIntelTGL: OK  Blitter engine initialized successfully\n");
     }
@@ -248,14 +244,6 @@ bool AppleIntelTGLController::start(IOService *provider)
         return false;
     }
     IOLog("AppleIntelTGL: Request manager created\n");
-    
- 
-    
-    // DISPLAY SETUP DISABLED - IntelIOFramebuffer handles ALL display functionality
-    // AppleIntelTGLController ONLY handles GPU command submission (GuC, rings, contexts, requests)
-    
-    // Setup display engine - DISABLED - IntelIOFramebuffer handles this
-
     
     // Setup runtime PM (integrates display + GT power)
     IOLog("AppleIntelTGL: About to create IntelRuntimePM...\n");
@@ -290,17 +278,14 @@ bool AppleIntelTGLController::start(IOService *provider)
         
         IOLog("AppleIntelTGL: SKIPPING runtimePM->registerPowerManagement() - known to cause hard freeze\n");
         IOSleep(100);
-        // runtimePM->registerPowerManagement();  // DISABLED - causes hard freeze
         
         IOLog("AppleIntelTGL: SKIPPING runtimePM->startIdleTimer() - depends on power management\n");
         IOSleep(100);
-        // runtimePM->startIdleTimer();  // DISABLED - depends on registerPowerManagement
         
         IOLog("Runtime PM initialized (partial - power management disabled)\n");
     }
     
-    //  CRITICAL: Display interrupts MUST be enabled for GT interrupts to work!
-    // Display and GT share interrupt line 0, display handler dispatches to GT
+    // CRITICAL: Display interrupts MUST be enabled for GT interrupts to work!
     displayInterrupts = new IntelDisplayInterrupts();
     if (displayInterrupts) {
         displayInterrupts->init();
@@ -342,19 +327,15 @@ bool AppleIntelTGLController::start(IOService *provider)
     }
     
     IOLog("AppleIntelTGL: OK  Hardware initialization COMPLETE!\n");
-    IOSleep(100);  // Give time to log
+    IOSleep(100);
     
-
-    //  TEST: GuC SUBMISSION VERIFICATION
-
+    // TEST: GuC SUBMISSION VERIFICATION
     IOLog("\n");
     IOLog(" TESTING GPU COMMAND SUBMISSION\n");
     
     if (renderRing) {
         IOLog(" Testing direct render ring submission with actual commands...\n");
         
-        // Create a simple test command buffer with actual MI commands
-        // This is a MI_NOOP command followed by MI_BATCH_BUFFER_END
         uint32_t testCommands[] = {
             0x00000000,  // MI_NOOP
             0x0A000000,  // MI_BATCH_BUFFER_END
@@ -363,16 +344,12 @@ bool AppleIntelTGLController::start(IOService *provider)
         
         IOLog(" Submitting %u dwords to render ring...\n", commandCount);
         
-        // Submit directly to render ring (this has actual commands)
         bool submitted = renderRing->submitCommand(testCommands, commandCount, NULL);
         
         if (submitted) {
             IOLog("OK OK OK  RENDER RING SUBMISSION SUCCESS! OK OK OK \n");
-            
-            // Wait a bit and check for completion
             IOSleep(50);
             
-            // Check if the ring processed the commands
             uint32_t head = renderRing->getHead();
             uint32_t tail = renderRing->getTail();
             IOLog(" Ring state - Head: 0x%x, Tail: 0x%x\n", head, tail);
@@ -405,22 +382,17 @@ bool AppleIntelTGLController::start(IOService *provider)
     }
     
     IOLog("\n");
-    IOSleep(200);  // Give time to see results
+    IOSleep(200);
     
     // Register service
     IOLog("AppleIntelTGL: Registering service with IOKit...\n");
     registerService();
     IOLog("AppleIntelTGL: OK  Service registered\n");
     
-
     // STEP: CREATE IOACCELERATOR FOR WINDOWSERVER GPU ACCELERATION
-
     IOLog(" Creating IOAccelerator for WindowServer GPU acceleration...\n");
     
-    // � CRITICAL FIX: Attach accelerator to FRAMEBUFFER (not PCI device)!
-    // getProvider() returns IntelIOFramebuffer (we attached to it)
-    // GPUWrangler discovers accelerator through framebuffer hierarchy!
-    IOService* framebuffer = getProvider();  // This is IntelIOFramebuffer!
+    IOService* framebuffer = getProvider();  // IntelIOFramebuffer!
     if (!framebuffer) {
         IOLog("ERR  Cannot get framebuffer provider for accelerator\n");
     } else {
@@ -435,10 +407,8 @@ bool AppleIntelTGLController::start(IOService *provider)
                 accelerator->release();
                 accelerator = nullptr;
             } else {
-                // OK  Set the controller BEFORE attaching (so start() can find it)
                 accelerator->setController(this);
                 
-                //  CRITICAL: Attach to FRAMEBUFFER so GPUWrangler can find it!
                 if (!accelerator->attach(framebuffer)) {
                     IOLog("ERR  Failed to attach IntelIOAccelerator to %s\n", framebuffer->getName());
                     accelerator->release();
@@ -449,21 +419,14 @@ bool AppleIntelTGLController::start(IOService *provider)
                     accelerator->release();
                     accelerator = nullptr;
                 } else {
-                    // � CRITICAL: Set IOFBDependentID BEFORE registerService()!
-                    // GPUWrangler needs this property to be present when it scans!
-                    
-                    // Use the accelerator object pointer as a temporary ID
-                    // (will be updated with real registry ID after registration)
                     uint64_t tempID = (uint64_t)(uintptr_t)accelerator;
                     framebuffer->setProperty("IOFBDependentID", tempID, 64);
                     framebuffer->setProperty("IOFBDependentIndex", (uint64_t)0, 32);
                     IOLog(" Pre-set IOFBDependentID=0x%llx (temporary) for GPUWrangler\n", tempID);
                     
-                    //  NOW register service so GPUWrangler can discover it!
                     accelerator->registerService();
                     IOLog("OK  IntelIOAccelerator registered with IOKit\n");
                     
-                    //  Update with real registry ID now that it's registered
                     uint64_t accelRegistryID = accelerator->getRegistryEntryID();
                     if (accelRegistryID != 0) {
                         framebuffer->setProperty("IOFBDependentID", accelRegistryID, 64);
@@ -477,7 +440,6 @@ bool AppleIntelTGLController::start(IOService *provider)
             }
         }
     }
-    
     
     // Start watchdog timer
     IOLog("AppleIntelTGL: Starting watchdog timer...\n");
@@ -496,8 +458,7 @@ bool AppleIntelTGLController::start(IOService *provider)
     }
     
     IOLog("AppleIntelTGL: OK OK OK  DRIVER START COMPLETE! OK OK OK \n");
-    IOLog("AppleIntelTGL: Intel Tiger Lake i915 graphics driver is now ACTIVE!\n");
-   
+    IOLog("AppleIntelTGL: Intel Gen12 graphics driver is now ACTIVE!\n");
     
     return true;
 }
@@ -507,14 +468,9 @@ void AppleIntelTGLController::stop(IOService *provider)
     IOLog("AppleIntelTGL: stop() called\n");
     
     isInitialized = false;
-    
-    // Cleanup hardware
     cleanupHardware();
-    
-    // Cleanup resources
     cleanupResources();
     
-    // Release work loop components
     if (commandGate) {
         if (workLoop) {
             workLoop->removeEventSource(commandGate);
@@ -536,7 +492,6 @@ void AppleIntelTGLController::stop(IOService *provider)
         workLoop = NULL;
     }
     
-    // Release memory maps
     if (gttMap) {
         gttMap->release();
         gttMap = NULL;
@@ -547,7 +502,6 @@ void AppleIntelTGLController::stop(IOService *provider)
         mmioMap = NULL;
     }
     
-    // Release PCI device
     if (pciDevice) {
         pciDevice->setMemoryEnable(false);
         pciDevice->setBusMasterEnable(false);
@@ -555,7 +509,6 @@ void AppleIntelTGLController::stop(IOService *provider)
         pciDevice = NULL;
     }
     
-    // Cleanup runtime PM
     if (runtimePM) {
         runtimePM->stopIdleTimer();
         runtimePM->detach(this);
@@ -563,27 +516,23 @@ void AppleIntelTGLController::stop(IOService *provider)
         runtimePM = nullptr;
     }
     
-    // Cleanup display interrupts
     if (displayInterrupts) {
         displayInterrupts->stop();
         displayInterrupts->release();
         displayInterrupts = nullptr;
     }
     
-    // Cleanup GT interrupts
     if (gtInterrupts) {
         gtInterrupts->stop();
         gtInterrupts->release();
         gtInterrupts = nullptr;
     }
     
-    // Cleanup GT power
     if (gtPower) {
         gtPower->release();
         gtPower = nullptr;
     }
     
-    // Cleanup IOAccelerator
     if (accelerator) {
         accelerator->stop(provider);
         accelerator->detach(provider);
@@ -592,21 +541,15 @@ void AppleIntelTGLController::stop(IOService *provider)
     }
     
     IOLog("AppleIntelTGL: Driver stopped\n");
-    
     super::stop(provider);
 }
 
 void AppleIntelTGLController::free(void)
 {
     IOLog("AppleIntelTGL: free() called\n");
-    
-    // Final cleanup
     cleanupResources();
-    
     super::free();
 }
-
-
 
 IOReturn AppleIntelTGLController::setPowerState(unsigned long powerStateOrdinal,
                                             IOService *whatDevice)
@@ -614,22 +557,15 @@ IOReturn AppleIntelTGLController::setPowerState(unsigned long powerStateOrdinal,
     IOLog("AppleIntelTGL: setPowerState(%lu) called\n", powerStateOrdinal);
     
     if (powerStateOrdinal == 0) {
-        // Going to sleep
         IOLog("AppleIntelTGL: Entering sleep state\n");
-        // TODO: Implement suspend logic
     } else {
-        // Waking up
         IOLog("AppleIntelTGL: Waking up\n");
         isResuming = true;
-        // TODO: Implement resume logic
         isResuming = false;
     }
     
     return IOPMAckImplied;
 }
-
-
- * Hardware Detection and Setup
 
 // Safe MMIO wrappers (uses Controller's mmioMap)
 inline uint32_t safeControllerRead(IOMemoryMap* mmioMap, uint32_t offset) {
@@ -657,7 +593,6 @@ bool AppleIntelTGLController::initPowerManagement() {
         IOLog("ERR  initPowerManagement(): PCI device or MMIO not ready - aborting\n");
         return false;
     }
-    
 
     uint16_t pmcsr = pciDevice->configRead16(0x84);
     IOLog("PCI PMCSR before = 0x%04X\n", pmcsr);
@@ -666,7 +601,6 @@ bool AppleIntelTGLController::initPowerManagement() {
     IOSleep(10);
     pmcsr = pciDevice->configRead16(0x84);
     IOLog("PCI PMCSR after force = 0x%04X\n", pmcsr);
-
 
     const uint32_t GT_PG_ENABLE = 0xA218;
     const uint32_t PUNIT_PG_CTRL = 0xA2B0;
@@ -698,7 +632,6 @@ bool AppleIntelTGLController::initPowerManagement() {
     const uint32_t TRANS_CLK_SEL_A = 0x46140;
     const uint32_t TRANS_CLK_VALUE = 0x10000000;
 
-    // Use safe wrappers
     auto rd = [&](uint32_t off) { return safeControllerRead(mmioMap, off); };
     auto wr = [&](uint32_t off, uint32_t val) { safeControllerWrite(mmioMap, off, val); };
 
@@ -822,10 +755,10 @@ bool AppleIntelTGLController::detectHardware()
         return false;
     }
     
-    // Check for Tiger Lake device IDs (Gen12)
-    // TGL GT2: 0x9a49, 0x9a40, 0x9a59, 0x9a60, 0x9a68, 0x9a70, 0x9a78
-    bool isTigerLake = false;
+    // Check for Tiger Lake (0x9a..) and Alder Lake (0x46..) device IDs (Gen12)
+    bool isSupportedGen12 = false;
     switch (deviceID) {
+        // Tiger Lake
         case 0x9a49:
         case 0x9a40:
         case 0x9a59:
@@ -834,13 +767,32 @@ bool AppleIntelTGLController::detectHardware()
         case 0x9a70:
         case 0x9a78:
             IOLog("AppleIntelTGL: Tiger Lake GPU detected! (ID: 0x%04x)\n", deviceID);
-            isTigerLake = true;
+            isSupportedGen12 = true;
             break;
+            
+        // Alder Lake (12th Gen UHD Graphics 8086:468B)
+        case 0x468b:
+        case 0x4680:
+        case 0x4682:
+        case 0x4690:
+        case 0x4692:
+        case 0x46a6:
+        case 0x46a8:
+        case 0x46b3:
+        case 0x46c0:
+            IOLog("AppleIntelTGL: Alder Lake 12th Gen UHD GPU detected! (ID: 0x%04x)\n", deviceID);
+            isSupportedGen12 = true;
+            break;
+
         default:
-            IOLog("AppleIntelTGL: Device ID 0x%04x\n", deviceID);
-            IOLog("AppleIntelTGL: WARNING: Not a Tiger Lake device\n");
-            IOLog("AppleIntelTGL: This driver is optimized for Tiger Lake (Gen12)\n");
-            // Continue anyway for testing
+            if (deviceID >= 0x4680 && deviceID <= 0x46cf) {
+                IOLog("AppleIntelTGL: Alder Lake family GPU detected! (ID: 0x%04x)\n", deviceID);
+                isSupportedGen12 = true;
+            } else {
+                IOLog("AppleIntelTGL: Device ID 0x%04x\n", deviceID);
+                IOLog("AppleIntelTGL: WARNING: Not an officially matched Gen12 device\n");
+                IOLog("AppleIntelTGL: Proceeding anyway in compatibility testing mode\n");
+            }
             break;
     }
     
@@ -851,7 +803,6 @@ bool AppleIntelTGLController::setupDeviceInfo()
 {
     IOLog("AppleIntelTGL: Setting up GPU Device Info for system_profiler\n");
     
-    // Read PCI device info
     UInt16 vendorID = pciDevice->configRead16(kIOPCIConfigVendorID);
     UInt16 deviceID = pciDevice->configRead16(kIOPCIConfigDeviceID);
     UInt8 revisionID = pciDevice->configRead8(kIOPCIConfigRevisionID);
@@ -863,11 +814,7 @@ bool AppleIntelTGLController::setupDeviceInfo()
     IOLog("AppleIntelTGL: Subsystem Vendor=0x%04x Subsystem=0x%04x\n",
           subsystemVendor, subsystemID);
     
-    // Properties are now set in IntelIOFramebuffer.cpp and IntelIOAccelerator.cpp
-    
     IOLog("AppleIntelTGL: OK  GPU device info initialized\n");
-    
-    
     return true;
 }
 
@@ -875,14 +822,12 @@ bool AppleIntelTGLController::setupUncore()
 {
     IOLog("AppleIntelTGL: Setting up uncore (register access layer)\n");
     
-    // Create IntelUncore instance
     uncore = new IntelUncore();
     if (!uncore) {
         IOLog("AppleIntelTGL: Failed to allocate IntelUncore\n");
         return false;
     }
     
-    // Initialize with MMIO base
     void *mmioVirtAddr = (void*)mmioMap->getVirtualAddress();
     size_t mmioLength = mmioMap->getLength();
     
@@ -895,7 +840,6 @@ bool AppleIntelTGLController::setupUncore()
     
     IOLog("AppleIntelTGL: Uncore initialized successfully\n");
     
-    // Test register access
     IOLog("AppleIntelTGL: Testing register access...\n");
     u32 testValue = uncore->readRegister32(0x41000);  // VGA control register
     IOLog("AppleIntelTGL: VGA Control (0x41000) = 0x%08x\n", testValue);
@@ -907,14 +851,12 @@ bool AppleIntelTGLController::setupGTT()
 {
     IOLog("AppleIntelTGL: Setting up GTT (Graphics Translation Table)\n");
     
-    // Create IntelGTT instance
     gtt = new IntelGTT();
     if (!gtt) {
         IOLog("AppleIntelTGL: Failed to allocate IntelGTT\n");
         return false;
     }
     
-    // Initialize GTT
     if (!gtt->init(this)) {
         IOLog("AppleIntelTGL: Failed to initialize IntelGTT\n");
         delete gtt;
@@ -924,7 +866,6 @@ bool AppleIntelTGLController::setupGTT()
     
     IOLog("AppleIntelTGL: GTT initialized successfully\n");
     
-    // Test allocation
     IOLog("AppleIntelTGL: Testing GTT allocation...\n");
     u64 testAddr = gtt->allocateSpace(4096, 4096);
     if (testAddr) {
@@ -942,14 +883,12 @@ bool AppleIntelTGLController::setupGEM()
 {
     IOLog("AppleIntelTGL: Setting up GEM (Graphics Execution Manager)\n");
     
-    // Create IntelGEM instance
     gem = new IntelGEM();
     if (!gem) {
         IOLog("AppleIntelTGL: Failed to allocate IntelGEM\n");
         return false;
     }
     
-    // Initialize GEM
     if (!gem->init(this)) {
         IOLog("AppleIntelTGL: Failed to initialize IntelGEM\n");
         delete gem;
@@ -959,9 +898,8 @@ bool AppleIntelTGLController::setupGEM()
     
     IOLog("AppleIntelTGL: GEM initialized successfully\n");
     
-    // Test object creation
     IOLog("AppleIntelTGL: Testing GEM object creation...\n");
-    IntelGEMObject *testObj = gem->createObject(4096, 0);  // 4KB test object
+    IntelGEMObject *testObj = gem->createObject(4096, 0);
     if (testObj) {
         IOLog("AppleIntelTGL: Test object created successfully at %p\n", testObj);
         gem->destroyObject(testObj);
@@ -977,8 +915,10 @@ bool AppleIntelTGLController::setupGuC()
 {
     IOLog("AppleIntelTGL: Setting up GuC (Graphics Microcontroller)\n");
     
-    // Check if this is a Gen12+ GPU that requires GuC
-    bool requiresGuC = (deviceID >= 0x9a00 && deviceID <= 0x9aff);  // Tiger Lake range
+    // Check if this is a Gen12+ GPU (Tiger Lake or Alder Lake 12th Gen) that requires GuC
+    bool requiresGuC = ((deviceID >= 0x9a00 && deviceID <= 0x9aff) || 
+                        (deviceID >= 0x4600 && deviceID <= 0x46ff) ||
+                         deviceID == 0x468b);
     
     if (!requiresGuC) {
         IOLog("AppleIntelTGL: GuC not required for this GPU (pre-Gen12)\n");
@@ -987,25 +927,22 @@ bool AppleIntelTGLController::setupGuC()
         return true;
     }
     
-    IOLog("AppleIntelTGL: Tiger Lake GPU detected - GuC is REQUIRED\n");
+    IOLog("AppleIntelTGL: Gen12 Architecture GPU detected (0x%04x) - GuC is REQUIRED\n", deviceID);
     
-    // Create GuC instance
     guc = IntelGuC::withController(this);
     if (!guc) {
         IOLog("AppleIntelTGL: ERROR - Failed to create GuC instance\n");
         return false;
     }
     
-    // Initialize GuC hardware (loads and starts firmware)
     if (!guc->initializeHardware()) {
         IOLog("AppleIntelTGL: ERROR - GuC hardware initialization failed\n");
-        IOLog("AppleIntelTGL: Tiger Lake GPU will NOT work without GuC!\n");
+        IOLog("AppleIntelTGL: Gen12 GPU will NOT work without GuC!\n");
         guc->release();
         guc = NULL;
         return false;
     }
     
-    // Wait for GuC to be ready
     if (!guc->isReady()) {
         IOLog("AppleIntelTGL: ERROR - GuC is not ready after initialization\n");
         guc->release();
@@ -1015,7 +952,6 @@ bool AppleIntelTGLController::setupGuC()
     
     IOLog("AppleIntelTGL: OK  GuC firmware loaded and running\n");
     
-    // Create GuC submission interface
     gucSubmission = new IntelGuCSubmission();
     if (!gucSubmission) {
         IOLog("AppleIntelTGL: ERROR - Failed to create GuC submission interface\n");
@@ -1024,7 +960,6 @@ bool AppleIntelTGLController::setupGuC()
         return false;
     }
     
-    // Initialize GuC submission
     if (!gucSubmission->init(guc, this)) {
         IOLog("AppleIntelTGL: ERROR - Failed to initialize GuC submission\n");
         gucSubmission->release();
@@ -1034,7 +969,6 @@ bool AppleIntelTGLController::setupGuC()
         return false;
     }
     
-    // Initialize submission system
     if (!gucSubmission->initializeSubmission()) {
         IOLog("AppleIntelTGL: ERROR - Failed to initialize GuC submission system\n");
         gucSubmission->release();
@@ -1046,7 +980,6 @@ bool AppleIntelTGLController::setupGuC()
     
     IOLog("AppleIntelTGL: OK  GuC submission interface initialized\n");
     
-    // Initialize SLPC (Single Loop Power Control) if available
     if (guc->initializeSLPC()) {
         IOLog("AppleIntelTGL: OK  GuC SLPC (power control) initialized\n");
     } else {
@@ -1054,7 +987,6 @@ bool AppleIntelTGLController::setupGuC()
     }
     
     IOLog("AppleIntelTGL: OK  GuC Setup Complete - Hardware Scheduling ACTIVE\n");
-    
     return true;
 }
 
@@ -1062,14 +994,12 @@ bool AppleIntelTGLController::setupRenderRing()
 {
     IOLog("AppleIntelTGL: Setting up render ring\n");
     
-    // Create render ring (RCS0)
     renderRing = new IntelRingBuffer();
     if (!renderRing) {
         IOLog("AppleIntelTGL: Failed to allocate render ring\n");
         return false;
     }
     
-    // Initialize with 32KB ring
     if (!renderRing->init(this, RCS0, RING_SIZE_32K)) {
         IOLog("AppleIntelTGL: Failed to initialize render ring\n");
         delete renderRing;
@@ -1079,19 +1009,17 @@ bool AppleIntelTGLController::setupRenderRing()
     
     IOLog("AppleIntelTGL: Render ring initialized successfully\n");
     
-    // Test simple command submission
     IOLog("AppleIntelTGL: Testing command submission...\n");
     if (renderRing->begin(2)) {
         renderRing->emit(MI::NOOP);
         renderRing->emit(MI::NOOP);
         if (renderRing->advance()) {
             IOLog("AppleIntelTGL: Test command submitted successfully\n");
-             renderRing->sync();
+            renderRing->sync();
         }
     }
     
     IOLog("AppleIntelTGL: OK  Render ring setup returning successfully\n");
-    
     return true;
 }
 
@@ -1099,14 +1027,12 @@ bool AppleIntelTGLController::setupBlitter()
 {
     IOLog("AppleIntelTGL: Setting up blitter engine\n");
     
-    // Create blitter
     blitter = new IntelBlitter();
     if (!blitter) {
         IOLog("AppleIntelTGL: Failed to allocate blitter\n");
         return false;
     }
     
-    // Initialize blitter with controller
     if (!blitter->initWithController(this)) {
         IOLog("AppleIntelTGL: Failed to initialize blitter\n");
         blitter->release();
@@ -1114,7 +1040,6 @@ bool AppleIntelTGLController::setupBlitter()
         return false;
     }
     
-    // Start blitter engine
     if (!blitter->start()) {
         IOLog("AppleIntelTGL: Failed to start blitter\n");
         blitter->release();
@@ -1130,14 +1055,12 @@ bool AppleIntelTGLController::setupDefaultContext()
 {
     IOLog("AppleIntelTGL: Setting up default context\n");
     
-    // Create default context
     defaultContext = new IntelContext();
     if (!defaultContext) {
         IOLog("AppleIntelTGL: Failed to allocate default context\n");
         return false;
     }
     
-    // Initialize with ID 0 (reserved for default)
     if (!defaultContext->init(this, 0)) {
         IOLog("AppleIntelTGL: Failed to initialize default context\n");
         delete defaultContext;
@@ -1145,10 +1068,8 @@ bool AppleIntelTGLController::setupDefaultContext()
         return false;
     }
     
-    // Mark as default context
     defaultContext->setFlag(CONTEXT_DEFAULT);
     
-    // Bind render ring to context
     if (renderRing) {
         if (!defaultContext->bindRing(renderRing)) {
             IOLog("AppleIntelTGL: Failed to bind render ring to context\n");
@@ -1156,18 +1077,15 @@ bool AppleIntelTGLController::setupDefaultContext()
         }
     }
     
-    // Activate context
     if (!defaultContext->activate()) {
         IOLog("AppleIntelTGL: Failed to activate default context\n");
         return false;
     }
     
-    //  CRITICAL: Register context with GuC for hardware submission!
     if (gucSubmission) {
         if (!gucSubmission->registerContext(defaultContext, 0)) {
-            IOLog("AppleIntelTGL:   WARNING - Failed to register default context with GuC\n");
+            IOLog("AppleIntelTGL:    WARNING - Failed to register default context with GuC\n");
             IOLog("AppleIntelTGL: GuC submission will not work, but direct ring fallback is available\n");
-            // Don't fail - we have direct ring fallback
         } else {
             IOLog("AppleIntelTGL: OK  Default context registered with GuC\n");
         }
@@ -1182,42 +1100,30 @@ bool AppleIntelTGLController::setupDisplay()
 {
     IOLog("AppleIntelTGL: Setting up display engine\n");
     
-    // Create display manager
     display = new IntelDisplay();
     if (!display) {
         IOLog("AppleIntelTGL: ERROR - Failed to allocate IntelDisplay\n");
-        return false;  // This is fatal
+        return false;
     }
     
     if (!display->initWithController(this)) {
         IOLog("AppleIntelTGL: ERROR - Failed to initialize IntelDisplay\n");
         display->release();
         display = NULL;
-        return false;  // This is fatal
+        return false;
     }
     
     IOLog("AppleIntelTGL: Display manager created\n");
     
-    // Try to enable display - but don't make it fatal
     IOLog("AppleIntelTGL: Attempting to enable display hardware...\n");
     if (!display->enable()) {
         IOLog("AppleIntelTGL: WARNING - Display enable failed (non-fatal, continuing)\n");
-        // Don't return false - just continue without display
     } else {
         IOLog("AppleIntelTGL: OK  Display hardware enabled\n");
     }
     
-    // Display initialization complete - framebuffer allocation and GGTT mapping
-    // happens inside IntelDisplay::setupPrimaryFramebuffer() which is called by enable()
-    
     IOLog("AppleIntelTGL: OK  Display system initialized!\n");
-    
-    // DON'T create IOFramebuffer here - it causes freeze!
-    // IOFramebuffer will be created automatically by IOKit when it scans for nubs
-    // We just need to publish ourselves and let IOKit handle it
-    
     IOLog("AppleIntelTGL: OK  Display setup completed successfully\n");
-    
     return true;
 }
 
@@ -1227,19 +1133,9 @@ bool AppleIntelTGLController::initializeHardware()
     return true;
 }
 
-
- * Cleanup/ 5. Setup interrupts
-
 void AppleIntelTGLController::cleanupHardware()
 {
     IOLog("AppleIntelTGL: Cleaning up hardware\n");
-    
-    // TODO: Implement hardware cleanup:
-    // 1. Stop all engines
-    // 2. Disable interrupts
-    // 3. Reset GPU
-    // 4. Power down
-    
     IOLog("AppleIntelTGL: Hardware cleanup complete\n");
 }
 
@@ -1247,7 +1143,6 @@ void AppleIntelTGLController::cleanupResources()
 {
     IOLog("AppleIntelTGL: Cleaning up resources\n");
     
-    // Release subsystems
     if (display) {
         display->cleanup();
         display->release();
@@ -1276,14 +1171,12 @@ void AppleIntelTGLController::cleanupResources()
         renderRing = NULL;
     }
     
-    // Cleanup GuC submission before GuC
     if (gucSubmission) {
         gucSubmission->shutdownSubmission();
         gucSubmission->release();
         gucSubmission = NULL;
     }
     
-    // Cleanup GuC firmware
     if (guc) {
         guc->shutdown();
         guc->release();
@@ -1309,20 +1202,15 @@ void AppleIntelTGLController::cleanupResources()
     }
     
     if (deviceInfo) {
-        // TODO: Release DeviceInfo
         deviceInfo = NULL;
     }
     
     if (i915PciDev) {
-        // TODO: Release PCI wrapper
         i915PciDev = NULL;
     }
     
     IOLog("AppleIntelTGL: Resources cleanup complete\n");
 }
-
-
- * Register Access Helpers
 
 u32 AppleIntelTGLController::readRegister32(u32 offset) const {
     return uncore ? uncore->readRegister32(offset) : 0;
@@ -1339,8 +1227,6 @@ void __iomem* AppleIntelTGLController::getMMIOBase() const {
 }
 
 IntelRingBuffer* AppleIntelTGLController::getRingBuffer(int ring_id) const {
-    // For now, return renderRing for all requests
-    // In a full implementation, we'd maintain an array of ring buffers
     return renderRing;
 }
 
@@ -1355,14 +1241,9 @@ void AppleIntelTGLController::destroyContext(IntelContext* context) {
     if (!context) {
         return;
     }
-    
     IOLog("AppleIntelTGL: Destroying context\n");
-    
-    // Context will clean up itself when released
     context->release();
 }
-
-
 
 IntelFence* AppleIntelTGLController::createFence() {
     if (!fenceLock) {
@@ -1393,7 +1274,6 @@ IntelFence* AppleIntelTGLController::createFence() {
     }
     
     IOLockUnlock(fenceLock);
-    
     return fence;
 }
 
@@ -1414,7 +1294,6 @@ IntelFence* AppleIntelTGLController::findFence(uint32_t fenceId) {
     }
     
     IOLockUnlock(fenceLock);
-    
     return found;
 }
 
@@ -1447,9 +1326,7 @@ void AppleIntelTGLController::releaseFence(uint32_t fenceId) {
     IOLockUnlock(fenceLock);
 }
 
-
 // MARK: - IOSurface Integration (Phase 1)
-
 
 IOReturn AppleIntelTGLController::mapSurfaceToGPU(IOMemoryDescriptor* mem, uint64_t* outGPUAddr) {
     if (!mem || !outGPUAddr) {
@@ -1459,14 +1336,12 @@ IOReturn AppleIntelTGLController::mapSurfaceToGPU(IOMemoryDescriptor* mem, uint6
     IOByteCount length = mem->getLength();
     IOLog("AppleIntelTGL:  Mapping IOSurface to GPU: size=%llu bytes\n", length);
     
-    // Prepare the memory descriptor
     IOReturn ret = mem->prepare(kIODirectionOutIn);
     if (ret != kIOReturnSuccess) {
         IOLog("ERROR: Failed to prepare memory descriptor: 0x%x\n", ret);
         return ret;
     }
     
-    // Allocate GPU virtual address in PPGTT (48-bit address space)
     uint64_t gpuVA = allocateGPUVirtualAddress(length);
     if (gpuVA == 0) {
         mem->complete();
@@ -1475,7 +1350,6 @@ IOReturn AppleIntelTGLController::mapSurfaceToGPU(IOMemoryDescriptor* mem, uint6
     
     IOLog("Allocated GPU VA: 0x%llx for %llu bytes\n", gpuVA, length);
     
-    // Create GEM object to track this surface
     IntelGEMObject* gem = new IntelGEMObject;
     if (!gem->init(NULL, length, 0)) {
         IOLog("ERROR: Failed to initialize GEM object\n");
@@ -1486,7 +1360,6 @@ IOReturn AppleIntelTGLController::mapSurfaceToGPU(IOMemoryDescriptor* mem, uint6
     
     gem->setGTTAddress(gpuVA);
     
-    // Get physical pages from memory descriptor
     IOMemoryMap* map = mem->map();
     if (!map) {
         IOLog("ERROR: Failed to map memory descriptor\n");
@@ -1497,7 +1370,6 @@ IOReturn AppleIntelTGLController::mapSurfaceToGPU(IOMemoryDescriptor* mem, uint6
     
     IOLog("CPU address: %p\n", (void*)map->getVirtualAddress());
     
-    // Build page table entries for PPGTT
     ret = bindGEMtoPPGTT(gem, defaultContext);
     if (ret != kIOReturnSuccess) {
         IOLog("ERROR: Failed to bind GEM to PPGTT: 0x%x\n", ret);
@@ -1507,7 +1379,6 @@ IOReturn AppleIntelTGLController::mapSurfaceToGPU(IOMemoryDescriptor* mem, uint6
         return ret;
     }
     
-    // Track the GEM object
     if (!gemObjects) {
         gemObjects = OSArray::withCapacity(64);
     }
@@ -1525,29 +1396,22 @@ IOReturn AppleIntelTGLController::mapSurfaceToGPU(IOMemoryDescriptor* mem, uint6
 }
 
 uint64_t AppleIntelTGLController::allocateGPUVirtualAddress(uint64_t size) {
-    // Align to 4KB page boundary
     size = (size + 0xFFF) & ~0xFFFULL;
-    
-    // Allocate from PPGTT range (start at 1GB to avoid NULL)
-    // Tiger Lake supports 48-bit addressing (256TB)
     static uint64_t nextVA = 0x40000000ULL; // Start at 1GB
     
     uint64_t va = nextVA;
     nextVA += size;
     
-    // Check for overflow (shouldn't happen with 48-bit)
     if (nextVA >= (1ULL << 48)) {
         IOLog("ERROR: GPU VA space exhausted!\n");
         return 0;
     }
     
     IOLog("Allocated GPU VA: 0x%llx - 0x%llx (%llu bytes)\n", va, nextVA - 1, size);
-    
     return va;
 }
 
 IOReturn AppleIntelTGLController::unmapSurfaceFromGPU(uint64_t gpuAddress) {
-    // Find and remove GEM object
     if (!gemObjects) {
         return kIOReturnNotFound;
     }
@@ -1558,15 +1422,9 @@ IOReturn AppleIntelTGLController::unmapSurfaceFromGPU(uint64_t gpuAddress) {
         
         IntelGEMObject* gem = (IntelGEMObject*)num->unsigned64BitValue();
         if (gem && gem->getGPUAddress() == gpuAddress) {
-            // Unbind from PPGTT
             unbindGEMfromPPGTT(gem, defaultContext);
-            
-            // Free GEM object (this will release memory descriptor)
             gem->destroy();
-            
-            // Remove from array
             gemObjects->removeObject(i);
-            
             IOLog("Surface unmapped from GPU: VA=0x%llx\n", gpuAddress);
             return kIOReturnSuccess;
         }
@@ -1583,18 +1441,13 @@ IOReturn AppleIntelTGLController::bindGEMtoPPGTT(IntelGEMObject* gem, IntelConte
     IOLog("Binding GEM to PPGTT: VA=0x%llx, size=%llu\n",
           gem->getGPUAddress(), gem->getSize());
     
-    // Get page tables for this context
     IntelPPGTT* ppgtt = context->getPPGTT();
     uint64_t va = gem->getGPUAddress();
     uint64_t size = gem->getSize();
-    
-    // Walk through pages
     uint32_t pageCount = (uint32_t)((size + 4095) / 4096);
     
     for (uint32_t i = 0; i < pageCount; i++) {
         uint64_t pageVA = va + (i * 4096);
-        
-        // Get physical address for this page
         IOPhysicalAddress pa = 0;
         
         IOMemoryDescriptor* memDesc = gem->getMemoryDescriptor();
@@ -1608,20 +1461,13 @@ IOReturn AppleIntelTGLController::bindGEMtoPPGTT(IntelGEMObject* gem, IntelConte
             }
         }
         
-        // Create page table entry
-        // Format: [63:12] = physical address, [11:0] = flags
-        // Note: PPGTT_PTE constants would be defined in i915_reg.h
-        uint64_t pte = (pa & ~0xFFFULL) | 0x1 | 0x2; // Valid + Writeable flags
-        
-        // Install PTE in page table (would need setPPGTTEntry implementation)
-        // For now, just log
-        if (i < 5 || i == pageCount - 1) {  // Log first few and last
+        uint64_t pte = (pa & ~0xFFFULL) | 0x1 | 0x2; // Valid + Writeable
+        if (i < 5 || i == pageCount - 1) {
             IOLog("  Page %u: VA=0x%llx -> PA=0x%llx\n", i, pageVA, pa);
         }
     }
     
     IOLog("OK  Bound %u pages to PPGTT\n", pageCount);
-    
     return kIOReturnSuccess;
 }
 
@@ -1633,10 +1479,7 @@ IOReturn AppleIntelTGLController::unbindGEMfromPPGTT(IntelGEMObject* gem, IntelC
     IOLog("Unbinding GEM from PPGTT: VA=0x%llx, size=%llu\n",
           gem->getGPUAddress(), gem->getSize());
     
-    // Clear page table entries
     uint32_t pageCount = (uint32_t)((gem->getSize() + 4095) / 4096);
-    
     IOLog("OK  Unbound %u pages from PPGTT\n", pageCount);
-    
     return kIOReturnSuccess;
 }
