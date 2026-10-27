@@ -1,0 +1,53 @@
+name: Build AppleIntelTGLController Kext
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Release Kext
+    runs-on: macos-13
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Select Xcode Version
+        run: |
+          sudo xcode-select -s /Applications/Xcode_14.3.1.app || sudo xcode-select -s /Applications/Xcode.app
+          xcodebuild -version
+
+      - name: Build Kext (Release)
+        run: |
+          xcodebuild -project AppleIntelTGLController.xcodeproj \
+                     -scheme AppleIntelTGLController \
+                     -configuration Release \
+                     -derivedDataPath build \
+                     ARCHS=x86_64 \
+                     ONLY_ACTIVE_ARCH=NO \
+                     CODE_SIGN_IDENTITY="" \
+                     CODE_SIGNING_REQUIRED=NO \
+                     CODE_SIGNING_ALLOWED=NO \
+                     build
+
+      - name: Package Kext
+        run: |
+          cd build/Build/Products/Release
+          zip -r AppleIntelTGLController-Release.zip AppleIntelTGLController.kext
+          ls -la
+
+      - name: Upload Kext Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AppleIntelTGLController-Release
+          path: build/Build/Products/Release/AppleIntelTGLController.kext
+
+      - name: Upload Zip Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AppleIntelTGLController-Release-Zip
+          path: build/Build/Products/Release/AppleIntelTGLController-Release.zip

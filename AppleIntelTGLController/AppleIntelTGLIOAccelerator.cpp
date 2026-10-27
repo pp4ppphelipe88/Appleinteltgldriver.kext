@@ -223,8 +223,13 @@ bool IntelIOAccelerator::start(IOService* provider) {
     setProperty("IOAccelMemorySize", (unsigned long long)(256 * 1024 * 1024), 64);
     
     // GPU info for system_profiler and About This Mac
-    setProperty("model", "Intel Iris Xe Graphics");
-    setProperty("device-id", 0x9A49, 32);
+    UInt16 devId = controller ? controller->getDeviceID() : 0x9A49;
+    if (IS_ALDERLAKE(devId)) {
+        setProperty("model", "Intel UHD Graphics 770");
+    } else {
+        setProperty("model", "Intel Iris Xe Graphics");
+    }
+    setProperty("device-id", (uint32_t)devId, 32);
     setProperty("vendor-id", 0x8086, 32);
     setProperty("subsystem-id", 0x7270, 32);
     setProperty("subsystem-vendor-id", 0x8086, 32);

@@ -483,12 +483,12 @@ IOReturn IntelDeviceClient::doGet_config(IOAccelDeviceConfigData* output) {
 
   IntelHwCapsInfo* caps = &output->info.hwCapsInfo;
   
-  caps->fRevisionID = 0x01;
+  caps->fRevisionID = controller ? controller->getRevisionID() : 0x01;
   caps->fRevisionID_PCH = 0x00;
-  caps->fDeviceID = 0x9A49;
+  caps->fDeviceID = controller ? controller->getDeviceID() : 0x9A49;
   caps->fDeviceID_PCH = 0x0000;
   caps->fGpuSku = 0x0B;  // GT2 SKU
-  caps->fExecutionUnitCount = 80;  // TGL GT2 has 80 EUs
+  caps->fExecutionUnitCount = IS_ALDERLAKE(caps->fDeviceID) ? 32 : 80;
   
   caps->fPixelShaderMinThreads = 7;
   caps->fPoshShaderMaxThreads = 512;

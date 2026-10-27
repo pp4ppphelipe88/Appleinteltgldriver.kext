@@ -285,17 +285,25 @@ bool IntelIOFramebuffer::start(IOService* provider) {
 
     
     // Device identification
+    uint16_t devId = m_pciDevice ? m_pciDevice->configRead16(kIOPCIConfigDeviceID) : 0x9A49;
     setProperty("vendor-id", 0x8086, 32);   // Intel vendor ID
-    setProperty("device-id", 0x9A49, 32);   // Tiger Lake GT2
+    setProperty("device-id", (uint32_t)devId, 32);
     setProperty("revision-id", 0x01, 8);
     setProperty("subsystem-vendor-id", 0x8086, 32);
     setProperty("subsystem-id", 0x7270, 32);
     
     // GPU model name (for System Profiler)
-    setProperty("model", "Intel Iris Xe Graphics");
-    setProperty("ATY,FamilyName", "Intel Graphics");
-    setProperty("ATY,DeviceName", "Intel Iris Xe Graphics");
-    setProperty("IOName", "Intel Iris Xe Graphics");
+    if (IS_ALDERLAKE(devId)) {
+        setProperty("model", "Intel UHD Graphics 770");
+        setProperty("ATY,FamilyName", "Intel Graphics");
+        setProperty("ATY,DeviceName", "Intel UHD Graphics 770");
+        setProperty("IOName", "Intel UHD Graphics 770");
+    } else {
+        setProperty("model", "Intel Iris Xe Graphics");
+        setProperty("ATY,FamilyName", "Intel Graphics");
+        setProperty("ATY,DeviceName", "Intel Iris Xe Graphics");
+        setProperty("IOName", "Intel Iris Xe Graphics");
+    }
     
     // VRAM properties (shared system memory for TGL)
     OSNumber* vramSize = OSNumber::withNumber(1536ULL * 1024 * 1024, 64); // 1.5GB

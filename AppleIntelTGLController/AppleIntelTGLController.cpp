@@ -916,9 +916,10 @@ bool AppleIntelTGLController::setupGuC()
     IOLog("AppleIntelTGL: Setting up GuC (Graphics Microcontroller)\n");
     
     // Check if this is a Gen12+ GPU (Tiger Lake or Alder Lake 12th Gen) that requires GuC
-    bool requiresGuC = ((deviceID >= 0x9a00 && deviceID <= 0x9aff) || 
-                        (deviceID >= 0x4600 && deviceID <= 0x46ff) ||
-                         deviceID == 0x468b);
+    bool requiresGuC = IS_GEN12_XE_LP(deviceID) ||
+                        ((deviceID >= 0x9a00 && deviceID <= 0x9aff) || 
+                         (deviceID >= 0x4600 && deviceID <= 0x46ff) ||
+                          deviceID == 0x468b);
     
     if (!requiresGuC) {
         IOLog("AppleIntelTGL: GuC not required for this GPU (pre-Gen12)\n");

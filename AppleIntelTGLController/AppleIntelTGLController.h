@@ -76,6 +76,9 @@ public:
 
     /* Accessors */
     IOPCIDevice* getPCIDevice() const { return pciDevice; }
+    UInt16 getDeviceID() const { return deviceID; }
+    UInt16 getVendorID() const { return vendorID; }
+    UInt8 getRevisionID() const { return revisionID; }
     IntelUncore* getUncore() const { return uncore; }
     void __iomem* getMMIOBase() const;
     IntelDeviceInfo* getDeviceInfo() const { return deviceInfo; }

@@ -48,6 +48,10 @@
         <string>19.0.0</string>
         <key>com.apple.iokit.IOPCIFamily</key>
         <string>2.9</string>
+        <key>com.apple.iokit.IOGraphicsFamily</key>
+        <string>2.0</string>
+        <key>com.apple.iokit.IOSurface</key>
+        <string>1.0</string>
     </dict>
 </dict>
 </plist>
