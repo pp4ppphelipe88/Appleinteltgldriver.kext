@@ -21,6 +21,7 @@ jobs:
 
       - name: Build Kext (Release)
         run: |
+          set -o pipefail
           xcodebuild -project AppleIntelTGLController.xcodeproj \
                      -scheme AppleIntelTGLController \
                      -configuration Release \
@@ -30,7 +31,14 @@ jobs:
                      CODE_SIGN_IDENTITY="" \
                      CODE_SIGNING_REQUIRED=NO \
                      CODE_SIGNING_ALLOWED=NO \
-                     build
+                     build 2>&1 | tee xcodebuild.log
+
+      - name: Upload Build Log on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Xcodebuild-Failure-Log
+          path: xcodebuild.log
 
       - name: Package Kext
         run: |

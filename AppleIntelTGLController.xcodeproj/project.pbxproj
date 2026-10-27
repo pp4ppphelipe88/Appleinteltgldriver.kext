@@ -131,6 +131,10 @@
 		1E947F1E2F32334D00AFCD17 /* AppleIntelTGLIOAcceleratorClients.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1E947F1D2F32334D00AFCD17 /* AppleIntelTGLIOAcceleratorClients.cpp */; };
 		1E947F202F32338F00AFCD17 /* AppleIntelTGLIOAcceleratorClients.h in Headers */ = {isa = PBXBuildFile; fileRef = 1E947F1F2F32338F00AFCD17 /* AppleIntelTGLIOAcceleratorClients.h */; };
 		1EF87BDA2F3100640053695B /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1EF87BD92F3100640053695B /* Metal.framework */; };
+		1EFF00012EFD947A00C695BF /* IntelIOAccelerator.h in Headers */ = {isa = PBXBuildFile; fileRef = 1EFF00022EFD947A00C695BF /* IntelIOAccelerator.h */; };
+		1EFF00032EFD947A00C695BF /* IntelIOAcceleratorClients.h in Headers */ = {isa = PBXBuildFile; fileRef = 1EFF00042EFD947A00C695BF /* IntelIOAcceleratorClients.h */; };
+		1EFF00052EFD947A00C695BF /* IntelIOFramebuffer.h in Headers */ = {isa = PBXBuildFile; fileRef = 1EFF00062EFD947A00C695BF /* IntelIOFramebuffer.h */; };
+		1EFF00072EFD947A00C695BF /* IntelIOSurfaceManager.h in Headers */ = {isa = PBXBuildFile; fileRef = 1EFF00082EFD947A00C695BF /* IntelIOSurfaceManager.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -260,6 +264,10 @@
 		1E947F1D2F32334D00AFCD17 /* AppleIntelTGLIOAcceleratorClients.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AppleIntelTGLIOAcceleratorClients.cpp; sourceTree = "<group>"; };
 		1E947F1F2F32338F00AFCD17 /* AppleIntelTGLIOAcceleratorClients.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppleIntelTGLIOAcceleratorClients.h; sourceTree = "<group>"; };
 		1EF87BD92F3100640053695B /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		1EFF00022EFD947A00C695BF /* IntelIOAccelerator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IntelIOAccelerator.h; sourceTree = "<group>"; };
+		1EFF00042EFD947A00C695BF /* IntelIOAcceleratorClients.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IntelIOAcceleratorClients.h; sourceTree = "<group>"; };
+		1EFF00062EFD947A00C695BF /* IntelIOFramebuffer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IntelIOFramebuffer.h; sourceTree = "<group>"; };
+		1EFF00082EFD947A00C695BF /* IntelIOSurfaceManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IntelIOSurfaceManager.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -363,6 +371,10 @@
 				1E472CC72EFB06A100BA7707 /* AppleIntelTGLController.h */,
 				1E77E5012EFD947A00C695BF /* AppleIntelTGLIOAccelerator.cpp */,
 				1E77E50B2EFD947A00C695BF /* AppleIntelTGLIOAccelerator.h */,
+				1EFF00022EFD947A00C695BF /* IntelIOAccelerator.h */,
+				1EFF00042EFD947A00C695BF /* IntelIOAcceleratorClients.h */,
+				1EFF00062EFD947A00C695BF /* IntelIOFramebuffer.h */,
+				1EFF00082EFD947A00C695BF /* IntelIOSurfaceManager.h */,
 				1E947F1D2F32334D00AFCD17 /* AppleIntelTGLIOAcceleratorClients.cpp */,
 				1E947F1F2F32338F00AFCD17 /* AppleIntelTGLIOAcceleratorClients.h */,
 				1E472CAF2EFB06A000BA7707 /* AppleIntelTGLEGLFramebuffer.cpp */,
@@ -478,6 +490,10 @@
 				1E472D252EFB06A300BA7707 /* IntelMetalTexture.h in Headers */,
 				1E472D3B2EFB06A300BA7707 /* IntelMetalRenderPipeline.h in Headers */,
 				1E77E5182EFD947A00C695BF /* AppleIntelTGLIOAccelerator.h in Headers */,
+				1EFF00012EFD947A00C695BF /* IntelIOAccelerator.h in Headers */,
+				1EFF00032EFD947A00C695BF /* IntelIOAcceleratorClients.h in Headers */,
+				1EFF00052EFD947A00C695BF /* IntelIOFramebuffer.h in Headers */,
+				1EFF00072EFD947A00C695BF /* IntelIOSurfaceManager.h in Headers */,
 				1E472D122EFB06A300BA7707 /* IntelGuC.h in Headers */,
 				1E472D592EFB06A300BA7707 /* IntelRequest.h in Headers */,
 				1E77E5152EFD947A00C695BF /* linux_types.h in Headers */,
@@ -654,7 +670,7 @@
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
 				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = NO;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INFINITE_RECURSION = YES;
@@ -714,7 +730,7 @@
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
 				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = NO;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INFINITE_RECURSION = YES;
