@@ -15,6 +15,31 @@
 #include <IOKit/IOTimerEventSource.h>
 #include "linux_types.h"
 
+/* PCI Device IDs - Tiger Lake (Gen12 Xe-LP) */
+#define PCI_DEVICE_ID_INTEL_TGL_9A49    0x9A49
+#define PCI_DEVICE_ID_INTEL_TGL_9A40    0x9A40
+#define PCI_DEVICE_ID_INTEL_TGL_9A59    0x9A59
+#define PCI_DEVICE_ID_INTEL_TGL_9A60    0x9A60
+#define PCI_DEVICE_ID_INTEL_TGL_9A68    0x9A68
+#define PCI_DEVICE_ID_INTEL_TGL_9A70    0x9A70
+#define PCI_DEVICE_ID_INTEL_TGL_9A78    0x9A78
+
+/* PCI Device IDs - Alder Lake (Gen12 Xe-LP / 12th Gen UHD Graphics) */
+#define PCI_DEVICE_ID_INTEL_ADL_468B    0x468B  /* Alder Lake-S UHD Graphics (Primary) */
+#define PCI_DEVICE_ID_INTEL_ADL_4680    0x4680
+#define PCI_DEVICE_ID_INTEL_ADL_4682    0x4682
+#define PCI_DEVICE_ID_INTEL_ADL_4690    0x4690
+#define PCI_DEVICE_ID_INTEL_ADL_4692    0x4692
+#define PCI_DEVICE_ID_INTEL_ADL_46A6    0x46A6
+#define PCI_DEVICE_ID_INTEL_ADL_46A8    0x46A8
+#define PCI_DEVICE_ID_INTEL_ADL_46B3    0x46B3
+#define PCI_DEVICE_ID_INTEL_ADL_46C0    0x46C0
+
+/* Architecture helpers */
+#define IS_TIGERLAKE(devid)   ((devid) >= 0x9a40 && (devid) <= 0x9a78)
+#define IS_ALDERLAKE(devid)   ((devid) == PCI_DEVICE_ID_INTEL_ADL_468B || ((devid) >= 0x4680 && (devid) <= 0x46cf))
+#define IS_GEN12_XE_LP(devid) (IS_TIGERLAKE(devid) || IS_ALDERLAKE(devid))
+
 // Forward declarations
 class IntelPCIDevice;
 class IntelDeviceInfo;
@@ -27,13 +52,13 @@ class IntelContext;
 class IntelDisplay;
 class IntelPowerManagement;
 class IntelGTPowerManagement;
-class IntelRuntimePM;  // NEW
+class IntelRuntimePM;
 class IntelDisplayInterrupts;
 class IntelGTInterrupts;
 class IntelGuC;
 class IntelGuCSubmission;
 class IntelRequestManager;
-class IntelIOAccelerator;  // IOAccelerator service
+class IntelIOAccelerator;
 
 class AppleIntelTGLController : public IOService {
     OSDeclareDefaultStructors(AppleIntelTGLController)
@@ -41,9 +66,9 @@ class AppleIntelTGLController : public IOService {
 public:
     /* IOService overrides */
     virtual bool init(OSDictionary *dictionary = NULL) APPLE_KEXT_OVERRIDE;
-virtual bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
-virtual void stop(IOService *provider) APPLE_KEXT_OVERRIDE;
-virtual void free(void) APPLE_KEXT_OVERRIDE;
+    virtual bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
+    virtual void stop(IOService *provider) APPLE_KEXT_OVERRIDE;
+    virtual void free(void) APPLE_KEXT_OVERRIDE;
 
     /* Power Management */
     virtual IOReturn setPowerState(unsigned long powerStateOrdinal,
@@ -52,7 +77,7 @@ virtual void free(void) APPLE_KEXT_OVERRIDE;
     /* Accessors */
     IOPCIDevice* getPCIDevice() const { return pciDevice; }
     IntelUncore* getUncore() const { return uncore; }
-    void __iomem* getMMIOBase() const;  // Implemented in .cpp
+    void __iomem* getMMIOBase() const;
     IntelDeviceInfo* getDeviceInfo() const { return deviceInfo; }
     IOWorkLoop* getWorkLoop() const override { return workLoop; }
     IntelGTT* getGTT() const { return gtt; }
@@ -86,7 +111,7 @@ virtual void free(void) APPLE_KEXT_OVERRIDE;
     void signalFence(uint32_t fenceId);
     void releaseFence(uint32_t fenceId);
     
-    /* Register access helpers (delegate to uncore) - implemented in .cpp to avoid incomplete type */
+    /* Register access helpers */
     u32 readRegister32(u32 offset) const;
     void writeRegister32(u32 offset, u32 value);
     
@@ -113,7 +138,7 @@ virtual void free(void) APPLE_KEXT_OVERRIDE;
 
 private:
     /* Hardware detection and initialization */
-    bool initPowerManagement();  // Wake GPU (NEW - moved from framebuffer)
+    bool initPowerManagement();
     bool detectHardware();
     bool initializeHardware();
     bool setupDeviceInfo();
@@ -125,62 +150,62 @@ private:
     bool setupRenderRing();
     bool setupBlitter();
     bool setupDefaultContext();
-    bool setupDisplay();  // NEW
-    bool setupPowerManagement();  // NEW
+    bool setupDisplay();
+    bool setupPowerManagement();
 
     /* Cleanup */
     void cleanupHardware();
     void cleanupResources();
 
     /* Device components */
-    IOPCIDevice         *pciDevice;         // PCI device
-    IntelPCIDevice      *i915PciDev;        // Our PCI wrapper
-    IntelDeviceInfo     *deviceInfo;        // Device information
-    IntelUncore         *uncore;            // Register access
-    IntelGTT            *gtt;
-    IntelGEM            *gem;
-    IntelRingBuffer     *renderRing;
-    IntelContext        *defaultContext;
-    IntelDisplay        *display;
-    class IntelBlitter  *blitter;           // Blitter engine for 2D operations
-    IntelGTPowerManagement *gtPower;  // NEW
-    IntelRuntimePM      *runtimePM;  // NEW
-    IntelDisplayInterrupts* displayInterrupts;
-    IntelGTInterrupts* gtInterrupts;
-    IntelGuC            *guc;  // GuC firmware interface
-    IntelGuCSubmission  *gucSubmission;  // GuC submission
-    IntelPowerManagement *powerMgmt;  // Power management
-    IntelRequestManager  *requestManager;  // Request manager
-    IntelIOAccelerator   *accelerator;  // IOAccelerator service for Metal/WindowServer
+    IOPCIDevice          *pciDevice;
+    IntelPCIDevice       *i915PciDev;
+    IntelDeviceInfo      *deviceInfo;
+    IntelUncore          *uncore;
+    IntelGTT             *gtt;
+    IntelGEM             *gem;
+    IntelRingBuffer      *renderRing;
+    IntelContext         *defaultContext;
+    IntelDisplay         *display;
+    class IntelBlitter   *blitter;
+    IntelGTPowerManagement *gtPower;
+    IntelRuntimePM       *runtimePM;
+    IntelDisplayInterrupts *displayInterrupts;
+    IntelGTInterrupts    *gtInterrupts;
+    IntelGuC             *guc;
+    IntelGuCSubmission   *gucSubmission;
+    IntelPowerManagement *powerMgmt;
+    IntelRequestManager  *requestManager;
+    IntelIOAccelerator   *accelerator;
 
     /* Fence management */
-    OSArray             *activeFences;      // Array of active fences
-    IOLock              *fenceLock;         // Lock for fence operations
-    uint32_t            nextFenceId;        // Next fence ID to allocate
+    OSArray              *activeFences;
+    IOLock               *fenceLock;
+    uint32_t             nextFenceId;
     
-    /* GEM object tracking (Phase 1: IOSurface) */
-    OSArray             *gemObjects;        // Array of IntelGEMObject* (wrapped in OSNumber)
+    /* GEM object tracking */
+    OSArray              *gemObjects;
 
     /* Workloop and gates */
-    IOWorkLoop          *workLoop;          // Driver work loop
-    IOCommandGate       *commandGate;       // Command gate for serialization
-    IOTimerEventSource  *watchdogTimer;     // Watchdog timer
+    IOWorkLoop           *workLoop;
+    IOCommandGate        *commandGate;
+    IOTimerEventSource   *watchdogTimer;
 
     /* Memory regions */
-    IOMemoryMap         *mmioMap;           // MMIO BAR mapping
-    IOMemoryMap         *gttMap;            // GTT BAR mapping
+    IOMemoryMap          *mmioMap;
+    IOMemoryMap          *gttMap;
 
     /* Driver state */
-    bool                isInitialized;
-    bool                isResuming;
-    UInt16              deviceID;
-    UInt16              vendorID;
-    UInt8               revisionID;
-    uint64_t            framebufferGGTT;  // GGTT address of the main framebuffer
+    bool                 isInitialized;
+    bool                 isResuming;
+    UInt16               deviceID;
+    UInt16               vendorID;
+    UInt8                revisionID;
+    uint64_t             framebufferGGTT;
 
     /* Statistics */
-    UInt64              startTime;
-    UInt32              resetCount;
+    UInt64               startTime;
+    UInt32               resetCount;
 };
 
 #endif /* AppleIntelTGLController_h */
