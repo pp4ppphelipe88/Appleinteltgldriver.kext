@@ -11,7 +11,9 @@
 #include <IOKit/IOLib.h>
 
 
- * Initialization
+ /*
+  * Initialization
+  */
 
 bool IntelGEM::init(AppleIntelTGLController *ctrl)
 {
@@ -98,7 +100,9 @@ void IntelGEM::cleanup()
 }
 
 
- * Object Management
+ /*
+  * Object Management
+  */
 
 IntelGEMObject* IntelGEM::createObject(u64 size, u32 flags)
 {
@@ -160,7 +164,9 @@ void IntelGEM::destroyObject(IntelGEMObject *obj)
 }
 
 
- * Object Tracking
+ /*
+  * Object Tracking
+  */
 
 void IntelGEM::trackObject(IntelGEMObject *obj)
 {
@@ -217,7 +223,9 @@ void IntelGEM::removeFromList(IntelGEMObject *obj)
 }
 
 
- * Memory Management
+ /*
+  * Memory Management
+  */
 
 bool IntelGEM::allocateMemory(IntelGEMObject *obj)
 {
@@ -306,7 +314,9 @@ bool IntelGEM::flushAll()
 }
 
 
- * Statistics
+ /*
+  * Statistics
+  */
 
 void IntelGEM::getStatistics(struct gem_stats *out_stats)
 {
@@ -335,7 +345,9 @@ void IntelGEM::printStatistics()
 }
 
 
- * Accessors
+ /*
+  * Accessors
+  */
 
 IntelUncore* IntelGEM::getUncore() const
 {

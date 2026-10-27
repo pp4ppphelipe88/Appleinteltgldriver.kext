@@ -10,7 +10,9 @@
 #include <IOKit/IOLib.h>
 
 
- * Creation and Destruction
+ /*
+  * Creation and Destruction
+  */
 
 IntelGEMObject::IntelGEMObject()
 {
@@ -158,7 +160,9 @@ void IntelGEMObject::cleanup()
 }
 
 
- * Memory Allocation
+ /*
+  * Memory Allocation
+  */
 
 bool IntelGEMObject::allocateMemory()
 {
@@ -224,7 +228,9 @@ void IntelGEMObject::freeGPUAddress()
 }
 
 
- * Reference Counting
+ /*
+  * Reference Counting
+  */
 
 void IntelGEMObject::retain()
 {
@@ -246,7 +252,9 @@ void IntelGEMObject::release()
 }
 
 
- * Memory Mapping
+ /*
+  * Memory Mapping
+  */
 
 bool IntelGEMObject::mapCPU(void **address)
 {
@@ -324,7 +332,9 @@ void IntelGEMObject::unmapGTT()
 }
 
 
- * Domain Management
+ /*
+  * Domain Management
+  */
 
 bool IntelGEMObject::setDomain(u32 new_read_domains, u32 new_write_domain)
 {
@@ -354,7 +364,9 @@ bool IntelGEMObject::setDomain(u32 new_read_domains, u32 new_write_domain)
 }
 
 
- * Cache Control
+ /*
+  * Cache Control
+  */
 
 bool IntelGEMObject::setCacheLevel(enum intel_cache_level level)
 {

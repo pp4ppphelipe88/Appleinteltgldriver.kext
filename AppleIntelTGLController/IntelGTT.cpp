@@ -324,7 +324,9 @@ bool IntelGTT::initializePageTables()
 
 
 
- * GTT Entry Management
+ /*
+  * GTT Entry Management
+  */
 
 u64 IntelGTT::makeGen12PTE(u64 physAddr, u32 flags)
 {
@@ -374,7 +376,9 @@ void IntelGTT::flushPTE(size_t index)
 }
 
 
- * GTT Operations
+ /*
+  * GTT Operations
+  */
 
 bool IntelGTT::insertEntries(u64 start, IOMemoryDescriptor *mem, u32 flags)
 {
@@ -538,10 +542,14 @@ bool IntelGTT::unbindObject(IntelGEMObject *obj)
 }
 
 
- * IOSurface Scanout Support - System Physical -> GTT Offset
+ /*
+  * IOSurface Scanout Support - System Physical -> GTT Offset
+  */
 
 
- * bindSurfacePages / unbindSurfacePages - NO LOCKING
+ /*
+  * bindSurfacePages / unbindSurfacePages - NO LOCKING
+  */
 
 
 
@@ -721,7 +729,9 @@ bool IntelGTT::unbindSurfacePages(uint32_t gttOffset, size_t size)
 
 
 
- * Address Space Allocation
+ /*
+  * Address Space Allocation
+  */
 
 size_t IntelGTT::findFreeSpace(size_t numPages, size_t alignmentPages)
 {
@@ -757,8 +767,12 @@ size_t IntelGTT::findFreeSpace(size_t numPages, size_t alignmentPages)
 }
 
 
- * Bitmap operations - NO LOCKING
- * bindSurfacePages is single-threaded from WindowServer
+ /*
+  * Bitmap operations - NO LOCKING
+  */
+ /*
+  * bindSurfacePages is single-threaded from WindowServer
+  */
 
 void IntelGTT::markSpaceUsed(size_t startPage, size_t numPages)
 {
@@ -849,7 +863,9 @@ void IntelGTT::markSpaceFree(size_t startPage, size_t numPages)
 }
 
 
- * allocateSpace / freeSpace - NO LOCKING
+ /*
+  * allocateSpace / freeSpace - NO LOCKING
+  */
 u64 IntelGTT::allocateSpace(size_t size, size_t alignment)
 {
     if (size == 0 || size > usableSize) {
@@ -898,7 +914,9 @@ bool IntelGTT::freeSpace(u64 address, size_t size)
 
 
 
- * Statistics
+ /*
+  * Statistics
+  */
 
 void IntelGTT::getStats(struct gtt_stats *out)
 {
@@ -912,7 +930,9 @@ void IntelGTT::getStats(struct gtt_stats *out)
 }
 
 
- * Statistics - FIXED: check statsLock before using
+ /*
+  * Statistics - FIXED: check statsLock before using
+  */
 
 void IntelGTT::printStats()
 {
